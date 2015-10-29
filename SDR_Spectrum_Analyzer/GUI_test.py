@@ -32,7 +32,7 @@ class GUI_test(gr.top_block):
         self.fc = fc = 99700000
         self.ab = ab = 20000000
         self.N = N = 1024
-        self.IP = IP = "192.168.0.104"
+        self.IP = IP = "192.168.1.127"
         self.Antena = Antena = "RX2"
 
         ##################################################
@@ -83,10 +83,9 @@ class GUI_test(gr.top_block):
 
     def set_fc(self, fc):
         fc_range = self.src.get_freq_range(0)
-        if fc_range.start() < fc < fc_range.stop():
+        if self.ab / 2 + fc_range.start() < fc < fc_range.stop() - self.ab / 2:
             self.fc = fc
             self.src.set_center_freq(self.fc, 0)
-        print(self.fc)
 
     def get_ab(self):
         return self.ab
@@ -120,7 +119,7 @@ if __name__ == '__main__':
     (options, args) = parser.parse_args()
     tb = GUI_test()
     tb.start()
-    dino = remote_configurator("192.168.0.103", 9999)
+    dino = remote_configurator("192.168.1.115", 9999)
     dino.bind()
     while 1:
     	data = dino.listen()

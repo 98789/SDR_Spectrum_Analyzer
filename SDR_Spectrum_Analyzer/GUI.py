@@ -34,6 +34,7 @@ from gnuradio.filter import firdes
 from optparse import OptionParser
 from remote_configurator import remote_configurator
 import baz
+import pyqtgraph as pg
 import sip
 import sys
 
@@ -173,6 +174,18 @@ class control_box(QtGui.QWidget):
         self.connect(self.sel_puerto, QtCore.SIGNAL("editingFinished()"),
                      self.puerto_edit_text)
 
+        self.sel_y1 = QtGui.QLineEdit(self)
+        self.sel_y1.setMaximumWidth(50)
+        self.conf_an.addRow("y1:", self.sel_y1)
+        self.connect(self.sel_y1, QtCore.SIGNAL("editingFinished()"),
+                     self.y1_edit_text)
+
+        self.sel_y0 = QtGui.QLineEdit(self)
+        self.sel_y0.setMaximumWidth(50)
+        self.conf_an.addRow("y0:", self.sel_y0)
+        self.connect(self.sel_y0, QtCore.SIGNAL("editingFinished()"),
+                     self.y0_edit_text)
+
         self.tab1.setLayout(self.conf_an)
         self.tab2.setLayout(self.conf_usrp)
         self.vbox.addWidget(self.tabs)
@@ -187,6 +200,8 @@ class control_box(QtGui.QWidget):
         self.sel_span.setText(QtCore.QString("%1").arg(self.signal.get_ab()))
         self.sel_fc.setText(QtCore.QString("%1").arg(self.signal.get_fc()))
         self.sel_ganancia.setText(QtCore.QString("%1").arg(self.signal.get_gan()))
+        self.sel_y0.setText(QtCore.QString("%1").arg(self.signal.get_y0()))
+        self.sel_y1.setText(QtCore.QString("%1").arg(self.signal.get_y1()))
 #            self.amp2Edit.setText(QtCore.QString("%1").arg(self.signal2.amplitude()))
 
     def IP_edit_text(self):
@@ -216,6 +231,7 @@ class control_box(QtGui.QWidget):
             self.signal.set_fc(newFc)
         except ValueError:
 	    print "Invalid center frequency"
+        self.sel_fc.setText("{0:.0f}".format(self.signal.get_fc()))
 
     def ganancia_edit_text(self):
         try:
@@ -223,6 +239,20 @@ class control_box(QtGui.QWidget):
             self.signal.set_gan(newGanancia)
         except ValueError:
 	    print "Gain out of range"
+
+    def y0_edit_text(self):
+        try:
+	    newy0 = float(self.sel_y0.text())
+            self.signal.set_y0(newy0)
+        except ValueError:
+	    print "Invalid center frequency"
+
+    def y1_edit_text(self):
+        try:
+	    newy1 = float(self.sel_y1.text())
+            self.signal.set_y1(newy1)
+        except ValueError:
+	    print "Invalid center frequency"
 
 class sdr_spectrum_analyzer(gr.top_block):
     def __init__(self):
@@ -242,72 +272,65 @@ class sdr_spectrum_analyzer(gr.top_block):
         self.fc = fc = 99700000
         self.ab = ab = 20000000
         self.N = N = 1024
-        self.IP = IP = "192.168.0.104"
+        self.IP = IP = "192.168.1.127"
         self.Antena = Antena = "RX2"
-	self.remote_IP = "192.168.0.103"
+	self.remote_IP = "192.168.1.115"
         self.dino = remote_configurator(self.remote_IP, self.port)
+        self.y0 = y0 = -100
+        self.y1 = y1 = 0
 
         ##################################################
         # Blocks
         ##################################################
-        self.qtgui_time_sink_x_0 = qtgui.time_sink_f(
-        	1024, #size
-        	fc, #samp_rate
-        	"", #name
-        	1 #number of inputs
+        self.qtgui_vector_sink_f_0 = qtgui.vector_sink_f(
+            N,
+            fc - ab / 2,
+            ab / N,
+            "Frecuencia",
+            "Amplitud",
+            "",
+            1 # Number of inputs
         )
-        self.qtgui_time_sink_x_0.set_update_time(0.10)
-        self.qtgui_time_sink_x_0.set_y_axis(-1, 1)
-
-#        self.qtgui_time_sink_x_0.set_x_label("Frecuencia", "")
-        self.qtgui_time_sink_x_0.set_y_label("Amplitud", "Hz")
-        
-        self.qtgui_time_sink_x_0.enable_tags(-1, True)
-        self.qtgui_time_sink_x_0.set_trigger_mode(qtgui.TRIG_MODE_FREE, qtgui.TRIG_SLOPE_POS, 0.0, 0, 0, "")
-        self.qtgui_time_sink_x_0.enable_autoscale(True)
-        self.qtgui_time_sink_x_0.enable_grid(False)
-        self.qtgui_time_sink_x_0.enable_control_panel(False)
-        
-        if not True:
-          self.qtgui_time_sink_x_0.disable_legend()
+        self.qtgui_vector_sink_f_0.set_update_time(0.10)
+        self.qtgui_vector_sink_f_0.set_y_axis(y0, y1)
+        self.qtgui_vector_sink_f_0.enable_autoscale(False)
+        self.qtgui_vector_sink_f_0.enable_grid(True)
+        self.qtgui_vector_sink_f_0.set_x_axis_units("Hz")
+        self.qtgui_vector_sink_f_0.set_y_axis_units("dBm")
+        self.qtgui_vector_sink_f_0.set_ref_level(0)
         
         labels = ["", "", "", "", "",
                   "", "", "", "", ""]
         widths = [1, 1, 1, 1, 1,
                   1, 1, 1, 1, 1]
         colors = ["blue", "red", "green", "black", "cyan",
-                  "magenta", "yellow", "dark red", "dark green", "blue"]
-        styles = [1, 1, 1, 1, 1,
-                  1, 1, 1, 1, 1]
-        markers = [-1, -1, -1, -1, -1,
-                   -1, -1, -1, -1, -1]
+                  "magenta", "yellow", "dark red", "dark green", "dark blue"]
         alphas = [1.0, 1.0, 1.0, 1.0, 1.0,
                   1.0, 1.0, 1.0, 1.0, 1.0]
-        
         for i in xrange(1):
             if len(labels[i]) == 0:
-                self.qtgui_time_sink_x_0.set_line_label(i, "Data {0}".format(i))
+                self.qtgui_vector_sink_f_0.set_line_label(i, "Data {0}".format(i))
             else:
-                self.qtgui_time_sink_x_0.set_line_label(i, labels[i])
-            self.qtgui_time_sink_x_0.set_line_width(i, widths[i])
-            self.qtgui_time_sink_x_0.set_line_color(i, colors[i])
-            self.qtgui_time_sink_x_0.set_line_style(i, styles[i])
-            self.qtgui_time_sink_x_0.set_line_marker(i, markers[i])
-            self.qtgui_time_sink_x_0.set_line_alpha(i, alphas[i])
+                self.qtgui_vector_sink_f_0.set_line_label(i, labels[i])
+            self.qtgui_vector_sink_f_0.set_line_width(i, widths[i])
+            self.qtgui_vector_sink_f_0.set_line_color(i, colors[i])
+            self.qtgui_vector_sink_f_0.set_line_alpha(i, alphas[i])
         
-        self._qtgui_time_sink_x_0_win = sip.wrapinstance(self.qtgui_time_sink_x_0.pyqwidget(), Qt.QWidget)
+        self._qtgui_vector_sink_f_0_win = sip.wrapinstance(self.qtgui_vector_sink_f_0.pyqwidget(), Qt.QWidget)
+        self.blocks_stream_to_vector_0 = blocks.stream_to_vector(gr.sizeof_float*1, N)
         self.baz_udp_source_0 = baz.udp_source(gr.sizeof_float*1, IP, port, 1472, True, True, False, False)
 
         ##################################################
         # Connections
         ##################################################
-        self.connect((self.baz_udp_source_0, 0), (self.qtgui_time_sink_x_0, 0))   
+        self.connect((self.baz_udp_source_0, 0), (self.blocks_stream_to_vector_0, 0))    
+        self.connect((self.blocks_stream_to_vector_0, 0), (self.qtgui_vector_sink_f_0, 0))
 
         self.ctrl_win = control_box()
         self.head_win = header()
         self.ctrl_win.attach_signal(self)
 
-        self.main_box = dialog_box(self.head_win, display_box(self._qtgui_time_sink_x_0_win), self.ctrl_win)
+        self.main_box = dialog_box(self.head_win, display_box(self._qtgui_vector_sink_f_0_win), self.ctrl_win)
         self.main_box.show()
 
     def closeEvent(self, event):
@@ -326,21 +349,24 @@ class sdr_spectrum_analyzer(gr.top_block):
 
     def set_gan(self, gan):
         self.gan = gan
-	self.dino.send({"gan":self.gan})
+	self.dino.send({"gan": self.gan})
 
     def get_fc(self):
         return self.fc
 
     def set_fc(self, fc):
-        self.fc = fc
-	self.dino.send({"fc":self.fc})
+        if(34000000 + self.ab / 2 < fc < 6016000000 - self.ab / 2):
+            self.fc = fc
+            self.update_x_axis()
+            self.dino.send({"fc": self.fc})
 
     def get_ab(self):
         return self.ab
 
     def set_ab(self, ab):
         self.ab = ab
-	self.dino.send({"ab":self.ab})
+        self.update_x_axis()
+	self.dino.send({"ab": self.ab})
 
     def get_N(self):
         return self.N
@@ -353,7 +379,7 @@ class sdr_spectrum_analyzer(gr.top_block):
 
     def set_IP(self, IP):
         self.IP = IP
-	self.dino.send({"IP":self.IP})
+	self.dino.send({"IP": self.IP})
 
     def get_Antena(self):
         return self.Antena
@@ -361,6 +387,25 @@ class sdr_spectrum_analyzer(gr.top_block):
     def set_Antena(self, Antena):
         self.Antena = Antena
 
+    def get_y0(self):
+        return self.y0
+
+    def set_y0(self, y0):
+        self.y0 = y0
+        self.update_y_axis()
+
+    def get_y1(self):
+        return self.y1
+
+    def set_y1(self, y1):
+        self.y1 = y1
+        self.update_y_axis()
+
+    def update_x_axis(self):
+        self.qtgui_vector_sink_f_0.set_x_axis(self.fc - self.ab / 2, self.ab / self.N)
+
+    def update_y_axis(self):
+        self.qtgui_vector_sink_f_0.set_y_axis(self.y0, self.y1)
 
 if __name__ == "__main__":
     tb = sdr_spectrum_analyzer();
