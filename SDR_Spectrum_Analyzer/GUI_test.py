@@ -15,6 +15,7 @@ from gnuradio.fft import window
 from gnuradio.filter import firdes
 from optparse import OptionParser
 from remote_configurator import remote_configurator
+import Math
 import baz
 import time
 
@@ -34,6 +35,7 @@ class GUI_test(gr.top_block):
         self.N = N = 1024
         self.IP = IP = "192.168.1.127"
         self.Antena = Antena = "RX2"
+        self.ventana = ventana = window.blackmanharris
 
         ##################################################
         # Blocks
@@ -48,20 +50,22 @@ class GUI_test(gr.top_block):
         self.src.set_samp_rate(ab)
         self.src.set_center_freq(fc, 0)
         self.src.set_gain(gan, 0)
-        self.src.set_antenna(Antena, 0)
-        self.fft_vxx_0 = fft.fft_vcc(N, True, (window.blackmanharris(1024)), True, 1)
-        self.blocks_vector_to_stream_0 = blocks.vector_to_stream(gr.sizeof_gr_complex*1, N)
+        self.src.set_antenna("RX2", 0)
+        self.fft_vxx_0 = fft.fft_vcc(N, True, (ventana(N)), True, 1)
+        self.dbm = Math.dbm()
+        self.blocks_vector_to_stream_0 = blocks.vector_to_stream(gr.sizeof_float*1, N)
         self.blocks_stream_to_vector_0 = blocks.stream_to_vector(gr.sizeof_gr_complex*1, N)
-        self.blocks_complex_to_mag_0 = blocks.complex_to_mag(1)
+        self.blocks_complex_to_mag_0 = blocks.complex_to_mag(N)
         self.baz_udp_sink_0 = baz.udp_sink(gr.sizeof_float*1, IP, port, 1472, True, False)
 
         ##################################################
         # Connections
         ##################################################
-        self.connect((self.blocks_complex_to_mag_0, 0), (self.baz_udp_sink_0, 0))    
+        self.connect((self.blocks_complex_to_mag_0, 0), (self.blocks_vector_to_stream_0, 0))    
         self.connect((self.blocks_stream_to_vector_0, 0), (self.fft_vxx_0, 0))    
-        self.connect((self.blocks_vector_to_stream_0, 0), (self.blocks_complex_to_mag_0, 0))    
-        self.connect((self.fft_vxx_0, 0), (self.blocks_vector_to_stream_0, 0))    
+        self.connect((self.blocks_vector_to_stream_0, 0), (self.dbm, 0))    
+        self.connect((self.dbm, 0), (self.baz_udp_sink_0, 0))    
+        self.connect((self.fft_vxx_0, 0), (self.blocks_complex_to_mag_0, 0))    
         self.connect((self.src, 0), (self.blocks_stream_to_vector_0, 0))    
 
 
@@ -113,13 +117,23 @@ class GUI_test(gr.top_block):
         self.Antena = Antena
         self.src.set_antenna(self.Antena, 0)
 
+    def get_ventana(self):
+        return self.ventana
+
+    def set_ventana(self, ventana):
+        self.ventana = getattr(window, ventana.replace(" ", "").lower())
+        if ventana != "Kaiser":
+            self.fft_vxx_0.set_window(self.ventana(self.N))
+        else:
+            self.fft_vxx_0.set_window(self.ventana(self.N, 6.76))	
+
 
 if __name__ == '__main__':
     parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
     (options, args) = parser.parse_args()
     tb = GUI_test()
     tb.start()
-    dino = remote_configurator("192.168.1.115", 9999)
+    dino = remote_configurator("192.168.1.114", 9999)
     dino.bind()
     while 1:
     	data = dino.listen()
@@ -129,8 +143,10 @@ if __name__ == '__main__':
             tb.set_fc(data.get("fc"))
         elif "ab" in data:
             tb.set_ab(data.get("ab"))
-        else:
+        elif "IP" in data:
             tb.set_IP(data.get("IP"))
+        else:
+            tb.set_ventana(data.get("ventana"))
     try:
         raw_input('Press Enter to quit: ')
     except EOFError:

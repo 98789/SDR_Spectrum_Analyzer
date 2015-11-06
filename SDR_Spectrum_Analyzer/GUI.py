@@ -29,7 +29,6 @@ from gnuradio import fft
 from gnuradio import gr
 from gnuradio import uhd
 from gnuradio.eng_option import eng_option
-from gnuradio.fft import window
 from gnuradio.filter import firdes
 from optparse import OptionParser
 from remote_configurator import remote_configurator
@@ -81,7 +80,6 @@ class header(QtGui.QWidget):
         self.setWindowTitle('Header')
 
         self.hbox = QtGui.QHBoxLayout(self)
-        self.hbox.setObjectName("BlueSquare")
         self.image = QtGui.QLabel()
         self.image.setPixmap(QtGui.QPixmap(QtCore.QString.fromUtf8('image.jpeg')))
         self.hbox.addWidget(self.image)
@@ -107,9 +105,7 @@ class control_box(QtGui.QWidget):
 
         self.tabs = QtGui.QTabWidget()
         self.tab1 = QtGui.QWidget()
-        self.tab1.setObjectName("BlueSquare")
         self.tab2 = QtGui.QWidget()
-        self.tab2.setObjectName("BlueSquare")
 
         self.configButton = QtGui.QPushButton("Configuracion")
         self.stopButton = QtGui.QPushButton("Stop")
@@ -144,21 +140,35 @@ class control_box(QtGui.QWidget):
         self.connect(self.sel_ganancia, QtCore.SIGNAL("editingFinished()"),
                      self.ganancia_edit_text)
 
+        self.sel_ventana = QtGui.QComboBox(self)
+        ventanas = ["Bartlett",
+                  "Blackman",
+                  "Blackman Harris",
+                  "Flat top",
+                  "Hamming",
+                  "Hanning",
+                  "Kaiser",
+                  "Rectangular"]
+        self.sel_ventana.addItems(ventanas)
+        self.sel_ventana.setMinimumWidth(100)
+        self.conf_an.addRow("Ventana:", self.sel_ventana)
+        self.connect(self.sel_ventana, QtCore.SIGNAL("currentTextChanged(const QString & text)"),
+                     self.ventana_edit_text)
+        self.sel_ventana.currentIndexChanged.connect(self.ventana_edit_text)
+
         self.sel_base = QtGui.QComboBox(self)
         bases = ["Exponencial Compleja",
                   "Triangular",
                   "Funcion de Potencia",
                    "Binomial"]
-        for base in bases:
-            self.sel_base.addItem(base)
+        self.sel_base.addItems(bases)
         self.sel_base.setMinimumWidth(100)
         self.conf_an.addRow("Base:", self.sel_base)
 
         self.sel_escala = QtGui.QComboBox(self)
         escalas = ["dBm",
                   "Lineal"]
-        for escala in escalas:
-            self.sel_escala.addItem(escala)
+        self.sel_escala.addItems(escalas)
         self.sel_escala.setMinimumWidth(100)
         self.conf_an.addRow("Escala:", self.sel_escala)
 
@@ -202,7 +212,6 @@ class control_box(QtGui.QWidget):
         self.sel_ganancia.setText(QtCore.QString("%1").arg(self.signal.get_gan()))
         self.sel_y0.setText(QtCore.QString("%1").arg(self.signal.get_y0()))
         self.sel_y1.setText(QtCore.QString("%1").arg(self.signal.get_y1()))
-#            self.amp2Edit.setText(QtCore.QString("%1").arg(self.signal2.amplitude()))
 
     def IP_edit_text(self):
         try:
@@ -240,6 +249,13 @@ class control_box(QtGui.QWidget):
         except ValueError:
 	    print "Gain out of range"
 
+    def ventana_edit_text(self):
+        try:
+	    newVentana = str(self.sel_ventana.currentText())
+            self.signal.set_ventana(newVentana)
+        except ValueError:
+	    print "Something went wrong with the selected window"
+
     def y0_edit_text(self):
         try:
 	    newy0 = float(self.sel_y0.text())
@@ -253,6 +269,7 @@ class control_box(QtGui.QWidget):
             self.signal.set_y1(newy1)
         except ValueError:
 	    print "Invalid center frequency"
+
 
 class sdr_spectrum_analyzer(gr.top_block):
     def __init__(self):
@@ -274,8 +291,9 @@ class sdr_spectrum_analyzer(gr.top_block):
         self.N = N = 1024
         self.IP = IP = "192.168.1.127"
         self.Antena = Antena = "RX2"
-	self.remote_IP = "192.168.1.115"
+	self.remote_IP = "192.168.1.114"
         self.dino = remote_configurator(self.remote_IP, self.port)
+        self.ventana = "Hamming"
         self.y0 = y0 = -100
         self.y1 = y1 = 0
 
@@ -386,6 +404,13 @@ class sdr_spectrum_analyzer(gr.top_block):
 
     def set_Antena(self, Antena):
         self.Antena = Antena
+
+    def get_ventana(self):
+        return self.ventana
+
+    def set_ventana(self, ventana):
+        self.ventana = ventana
+	self.dino.send({"ventana": self.ventana})
 
     def get_y0(self):
         return self.y0
