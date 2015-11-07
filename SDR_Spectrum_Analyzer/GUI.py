@@ -159,11 +159,14 @@ class control_box(QtGui.QWidget):
         self.sel_base = QtGui.QComboBox(self)
         bases = ["Exponencial Compleja",
                   "Triangular",
-                  "Funcion de Potencia",
+                  "Potencia",
                    "Binomial"]
         self.sel_base.addItems(bases)
         self.sel_base.setMinimumWidth(100)
         self.conf_an.addRow("Base:", self.sel_base)
+        self.connect(self.sel_base, QtCore.SIGNAL("currentTextChanged(const QString & text)"),
+                     self.base_edit_text)
+        self.sel_base.currentIndexChanged.connect(self.base_edit_text)
 
         self.sel_escala = QtGui.QComboBox(self)
         escalas = ["dBm",
@@ -256,6 +259,13 @@ class control_box(QtGui.QWidget):
         except ValueError:
 	    print "Something went wrong with the selected window"
 
+    def base_edit_text(self):
+        try:
+	    newBase = str(self.sel_base.currentText())
+            self.signal.set_base(newBase)
+        except ValueError:
+	    print "Something went wrong with the selected base"
+
     def y0_edit_text(self):
         try:
 	    newy0 = float(self.sel_y0.text())
@@ -291,9 +301,10 @@ class sdr_spectrum_analyzer(gr.top_block):
         self.N = N = 1024
         self.IP = IP = "192.168.1.127"
         self.Antena = Antena = "RX2"
-	self.remote_IP = "192.168.1.114"
+	self.remote_IP = "192.168.1.100"
         self.dino = remote_configurator(self.remote_IP, self.port)
         self.ventana = "Hamming"
+        self.base = "exponencial"
         self.y0 = y0 = -100
         self.y1 = y1 = 0
 
@@ -411,6 +422,13 @@ class sdr_spectrum_analyzer(gr.top_block):
     def set_ventana(self, ventana):
         self.ventana = ventana
 	self.dino.send({"ventana": self.ventana})
+
+    def get_base(self):
+        return self.base
+
+    def set_base(self, base):
+        self.base = base
+	self.dino.send({"base": self.base})
 
     def get_y0(self):
         return self.y0

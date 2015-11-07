@@ -7,7 +7,6 @@
 
 from gnuradio import blocks
 from gnuradio import eng_notation
-from gnuradio import fft
 from gnuradio import gr
 from gnuradio import uhd
 from gnuradio.eng_option import eng_option
@@ -15,7 +14,7 @@ from gnuradio.fft import window
 from gnuradio.filter import firdes
 from optparse import OptionParser
 from remote_configurator import remote_configurator
-import Math
+import RadioGIS
 import baz
 import time
 
@@ -36,6 +35,7 @@ class GUI_test(gr.top_block):
         self.IP = IP = "192.168.1.127"
         self.Antena = Antena = "RX2"
         self.ventana = ventana = window.blackmanharris
+        self.base = base = "exponencial"
 
         ##################################################
         # Blocks
@@ -51,22 +51,22 @@ class GUI_test(gr.top_block):
         self.src.set_center_freq(fc, 0)
         self.src.set_gain(gan, 0)
         self.src.set_antenna("RX2", 0)
-        self.fft_vxx_0 = fft.fft_vcc(N, True, (ventana(N)), True, 1)
-        self.dbm = Math.dbm()
+        self.dbm = RadioGIS.dbm()
         self.blocks_vector_to_stream_0 = blocks.vector_to_stream(gr.sizeof_float*1, N)
         self.blocks_stream_to_vector_0 = blocks.stream_to_vector(gr.sizeof_gr_complex*1, N)
         self.blocks_complex_to_mag_0 = blocks.complex_to_mag(N)
         self.baz_udp_sink_0 = baz.udp_sink(gr.sizeof_float*1, IP, port, 1472, True, False)
+        self.RadioGIS_fft_0 = RadioGIS.fft(N, base, (ventana(N)))
 
         ##################################################
         # Connections
         ##################################################
+        self.connect((self.RadioGIS_fft_0, 0), (self.blocks_complex_to_mag_0, 0))    
         self.connect((self.blocks_complex_to_mag_0, 0), (self.blocks_vector_to_stream_0, 0))    
-        self.connect((self.blocks_stream_to_vector_0, 0), (self.fft_vxx_0, 0))    
+        self.connect((self.blocks_stream_to_vector_0, 0), (self.RadioGIS_fft_0, 0))    
         self.connect((self.blocks_vector_to_stream_0, 0), (self.dbm, 0))    
         self.connect((self.dbm, 0), (self.baz_udp_sink_0, 0))    
-        self.connect((self.fft_vxx_0, 0), (self.blocks_complex_to_mag_0, 0))    
-        self.connect((self.src, 0), (self.blocks_stream_to_vector_0, 0))    
+        self.connect((self.src, 0), (self.blocks_stream_to_vector_0, 0))
 
 
     def get_port(self):
@@ -123,9 +123,16 @@ class GUI_test(gr.top_block):
     def set_ventana(self, ventana):
         self.ventana = getattr(window, ventana.replace(" ", "").lower())
         if ventana != "Kaiser":
-            self.fft_vxx_0.set_window(self.ventana(self.N))
+            self.RadioGIS_fft_0.set_window(self.ventana(self.N))
         else:
-            self.fft_vxx_0.set_window(self.ventana(self.N, 6.76))	
+            self.RadioGIS_fft_0.set_window(self.ventana(self.N, 6.76))
+
+    def get_base(self):
+        return self.base
+
+    def set_base(self, base):
+        self.base = base.split()[0].lower()
+        self.RadioGIS_fft_0.set_W(self.base)
 
 
 if __name__ == '__main__':
@@ -133,7 +140,7 @@ if __name__ == '__main__':
     (options, args) = parser.parse_args()
     tb = GUI_test()
     tb.start()
-    dino = remote_configurator("192.168.1.114", 9999)
+    dino = remote_configurator("192.168.1.100", 9999)
     dino.bind()
     while 1:
     	data = dino.listen()
@@ -145,6 +152,8 @@ if __name__ == '__main__':
             tb.set_ab(data.get("ab"))
         elif "IP" in data:
             tb.set_IP(data.get("IP"))
+        elif "base" in data:
+            tb.set_base(data.get("base"))
         else:
             tb.set_ventana(data.get("ventana"))
     try:
