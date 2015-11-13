@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 ##################################################
 # GNU Radio Python Flow Graph
-# Title: Gui Test
+# Title: SDR - SA Server
 # Generated: Fri Oct 16 18:12:32 2015
 ##################################################
 
@@ -11,18 +11,15 @@ from gnuradio import gr
 from gnuradio import uhd
 from gnuradio.eng_option import eng_option
 from gnuradio.fft import window
-from gnuradio.filter import firdes
 from optparse import OptionParser
 from remote_configurator import remote_configurator
 import RadioGIS
-import baz
-import time
 
 
-class GUI_test(gr.top_block):
+class SDR_SA_Server(gr.top_block):
 
     def __init__(self):
-        gr.top_block.__init__(self, "Gui Test")
+        gr.top_block.__init__(self, "SDR Spectrum Analyzer Server")
 
         ##################################################
         # Variables
@@ -55,7 +52,7 @@ class GUI_test(gr.top_block):
         self.blocks_vector_to_stream_0 = blocks.vector_to_stream(gr.sizeof_float*1, N)
         self.blocks_stream_to_vector_0 = blocks.stream_to_vector(gr.sizeof_gr_complex*1, N)
         self.blocks_complex_to_mag_0 = blocks.complex_to_mag(N)
-        self.baz_udp_sink_0 = baz.udp_sink(gr.sizeof_float*1, IP, port, 1472, True, False)
+        self.udp_sink_0 = blocks.udp_sink(gr.sizeof_float*1, IP, port, 1472, True)
         self.RadioGIS_fft_0 = RadioGIS.fft(N, base, (ventana(N)))
 
         ##################################################
@@ -65,7 +62,7 @@ class GUI_test(gr.top_block):
         self.connect((self.blocks_complex_to_mag_0, 0), (self.blocks_vector_to_stream_0, 0))    
         self.connect((self.blocks_stream_to_vector_0, 0), (self.RadioGIS_fft_0, 0))    
         self.connect((self.blocks_vector_to_stream_0, 0), (self.dbm, 0))    
-        self.connect((self.dbm, 0), (self.baz_udp_sink_0, 0))    
+        self.connect((self.dbm, 0), (self.udp_sink_0, 0))    
         self.connect((self.src, 0), (self.blocks_stream_to_vector_0, 0))
 
 
@@ -138,9 +135,9 @@ class GUI_test(gr.top_block):
 if __name__ == '__main__':
     parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
     (options, args) = parser.parse_args()
-    tb = GUI_test()
+    tb = SDR_SA_Server()
     tb.start()
-    dino = remote_configurator("192.168.1.100", 9999)
+    dino = remote_configurator("192.168.1.103", 9999)
     dino.bind()
     while 1:
     	data = dino.listen()

@@ -20,20 +20,13 @@
 # Boston, MA 02110-1301, USA.
 #
 
-from gnuradio import gr
 from gnuradio import blocks
 from PyQt4 import Qt
-from gnuradio import analog
 from gnuradio import eng_notation
-from gnuradio import fft
 from gnuradio import gr
 from gnuradio import uhd
-from gnuradio.eng_option import eng_option
-from gnuradio.filter import firdes
 from optparse import OptionParser
 from remote_configurator import remote_configurator
-import baz
-import pyqtgraph as pg
 import sip
 import sys
 
@@ -43,12 +36,6 @@ try:
     import sip
 except ImportError:
     sys.stderr.write("Error: Program requires PyQt4 and gr-qtgui.\n")
-    sys.exit(1)
-
-try:
-    from gnuradio import analog
-except ImportError:
-    sys.stderr.write("Error: Program requires gr-analog.\n")
     sys.exit(1)
 
 try:
@@ -72,7 +59,6 @@ class dialog_box(QtGui.QWidget):
         self.body.setLayout(self.boxlayout)
         self.vertlayout.addWidget(self.body)
 
-#        self.resize(800, 500)
 
 class header(QtGui.QWidget):
     def __init__(self, parent=None):
@@ -301,7 +287,7 @@ class sdr_spectrum_analyzer(gr.top_block):
         self.N = N = 1024
         self.IP = IP = "192.168.1.127"
         self.Antena = Antena = "RX2"
-	self.remote_IP = "192.168.1.100"
+	self.remote_IP = "192.168.1.103"
         self.dino = remote_configurator(self.remote_IP, self.port)
         self.ventana = "Hamming"
         self.base = "exponencial"
@@ -347,12 +333,12 @@ class sdr_spectrum_analyzer(gr.top_block):
         
         self._qtgui_vector_sink_f_0_win = sip.wrapinstance(self.qtgui_vector_sink_f_0.pyqwidget(), Qt.QWidget)
         self.blocks_stream_to_vector_0 = blocks.stream_to_vector(gr.sizeof_float*1, N)
-        self.baz_udp_source_0 = baz.udp_source(gr.sizeof_float*1, IP, port, 1472, True, True, False, False)
+        self.udp_source_0 = blocks.udp_source(gr.sizeof_float*1, IP, port, 1472, True)
 
         ##################################################
         # Connections
         ##################################################
-        self.connect((self.baz_udp_source_0, 0), (self.blocks_stream_to_vector_0, 0))    
+        self.connect((self.udp_source_0, 0), (self.blocks_stream_to_vector_0, 0))    
         self.connect((self.blocks_stream_to_vector_0, 0), (self.qtgui_vector_sink_f_0, 0))
 
         self.ctrl_win = control_box()
@@ -363,7 +349,7 @@ class sdr_spectrum_analyzer(gr.top_block):
         self.main_box.show()
 
     def closeEvent(self, event):
-        self.settings = Qt.QSettings("GNU Radio", "GUI_test")
+        self.settings = Qt.QSettings("GNU Radio", "SDR_SA_GUI")
         self.settings.setValue("geometry", self.saveGeometry())
         event.accept()
 
