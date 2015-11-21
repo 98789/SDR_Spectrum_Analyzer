@@ -12,11 +12,11 @@ QwtPlot
 
 DisplayPlot {
     qproperty-zoomer_color: green;
-    qproperty-line_color1: green;
-    qproperty-line_color2: green;
+    qproperty-line_color1: gold;
+    qproperty-line_color2: red;
     qproperty-line_color3: green;
     qproperty-line_style1: SolidLine;
-    qproperty-line_style2: DashLine;
+    qproperty-line_style2: SolidLine;
     qproperty-line_style3: DotLine;
     qproperty-axes_label_font_size: 18;
 }
@@ -28,9 +28,9 @@ TimeDomainDisplayPlot {
 }
 
 WaterfallDisplayPlot {
-    qproperty-intensity_color_map_type1: 1;
-    qproperty-low_intensity_color: black;
-    qproperty-high_intensity_color: green;
+    qproperty-intensity_color_map_type1: 0;
+    qproperty-low_intensity_color: blue;
+    qproperty-high_intensity_color: red;
 }
 
 FrequencyDisplayPlot {

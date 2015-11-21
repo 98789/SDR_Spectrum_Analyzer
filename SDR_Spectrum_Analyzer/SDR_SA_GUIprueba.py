@@ -25,12 +25,10 @@ from PyQt4 import Qt
 from gnuradio import eng_notation
 from gnuradio import gr
 from gnuradio import uhd
-from gnuradio.filter import firdes
 from optparse import OptionParser
 from remote_configurator import remote_configurator
 import sip
 import sys
-import RadioGIS
 
 try:
     from gnuradio import qtgui
@@ -47,7 +45,7 @@ except ImportError:
     sys.exit(1)
 
 class dialog_box(QtGui.QWidget):
-    def __init__(self, header, display, display2, control):
+    def __init__(self, header, display, control):
         QtGui.QWidget.__init__(self, None)
         self.setWindowTitle('SDR Spectrum Analyzer')
 	self.showMaximized()
@@ -57,24 +55,7 @@ class dialog_box(QtGui.QWidget):
         self.body = QtGui.QWidget()
         self.boxlayout = QtGui.QHBoxLayout()
         self.boxlayout.addWidget(control, 1)
-
-        self.tabs = QtGui.QTabWidget()
-        self.tab1 = QtGui.QWidget()
-        self.tab1layout = QtGui.QHBoxLayout()
-        self.tab2 = QtGui.QWidget()
-        self.tab2layout = QtGui.QHBoxLayout()
-
-        self.tab1layout.addWidget(display)
-        self.tab2layout.addWidget(display2)
-
-        self.tab1.setLayout(self.tab1layout)
-        self.tab2.setLayout(self.tab2layout)
-
-        self.tabs.addTab(self.tab1, "Espectro")
-        self.tabs.addTab(self.tab2, "Waterfall")
-
-        self.boxlayout.addWidget(self.tabs)
-
+        self.boxlayout.addWidget(display)
         self.body.setLayout(self.boxlayout)
         self.vertlayout.addWidget(self.body)
 
@@ -237,14 +218,14 @@ class control_box(QtGui.QWidget):
 
     def span_edit_text(self):
         try:
-	    newSpan = float(self.sel_span.text())
+	    newSpan = float(eng_notation.str_to_num(self.sel_span.text()))
             self.signal.set_ab(newSpan)
         except ValueError:
 	    print "Unsupported span value"
 
     def fc_edit_text(self):
         try:
-	    newFc = float(self.sel_fc.text())
+	    newFc = float(eng_notation.str_to_num(self.sel_fc.text()))
             self.signal.set_fc(newFc)
         except ValueError:
 	    print "Invalid center frequency"
@@ -276,14 +257,14 @@ class control_box(QtGui.QWidget):
 	    newy0 = float(self.sel_y0.text())
             self.signal.set_y0(newy0)
         except ValueError:
-	    print "Invalid amplitude value"
+	    print "Invalid center frequency"
 
     def y1_edit_text(self):
         try:
 	    newy1 = float(self.sel_y1.text())
             self.signal.set_y1(newy1)
         except ValueError:
-	    print "Invalid frequency value"
+	    print "Invalid center frequency"
 
 
 class sdr_spectrum_analyzer(gr.top_block):
@@ -304,47 +285,44 @@ class sdr_spectrum_analyzer(gr.top_block):
         self.fc = fc = 99700000
         self.ab = ab = 20000000
         self.N = N = 1024
-        self.IP = IP = "192.168.1.107"
+        self.IP = IP = "192.168.1.127"
         self.Antena = Antena = "RX2"
-	self.remote_IP = "192.168.1.103"
+	self.remote_IP = "192.168.1.101"
         self.dino = remote_configurator(self.remote_IP, self.port)
         self.ventana = "Hamming"
         self.base = "exponencial"
         self.y0 = y0 = -100
         self.y1 = y1 = 0
-        self.frequencies = frequencies = [0, 200, 600, 700, 900, 1000]
-        self.amplitudes = amplitudes = [0, -20, -20, -15, -15, -34]
 
         ##################################################
         # Blocks
         ##################################################
         self.qtgui_vector_sink_f_0 = qtgui.vector_sink_f(
             N,
-            (fc - ab / 2) / 1e6,
-            (ab / N) / 1e6,
-            "Frecuencia (MHz)",
+            fc - ab / 2,
+            ab / N,
+            "Frecuencia",
             "Amplitud",
             "",
-            2 # Number of inputs
+            1 # Number of inputs
         )
-        self.qtgui_vector_sink_f_0.set_update_time(0.1)
+        self.qtgui_vector_sink_f_0.set_update_time(1)
         self.qtgui_vector_sink_f_0.set_y_axis(y0, y1)
         self.qtgui_vector_sink_f_0.enable_autoscale(False)
         self.qtgui_vector_sink_f_0.enable_grid(True)
-        self.qtgui_vector_sink_f_0.set_vec_average(0.1)
         self.qtgui_vector_sink_f_0.set_x_axis_units("Hz")
         self.qtgui_vector_sink_f_0.set_y_axis_units("dBm")
         self.qtgui_vector_sink_f_0.set_ref_level(-90)
         
-        labels = ["Espectro", "Mascara", "", "", "",
+        labels = ["", "", "", "", "",
                   "", "", "", "", ""]
-        widths = [1, 3, 1, 1, 1,
+        widths = [1, 1, 1, 1, 1,
                   1, 1, 1, 1, 1]
-        colors = ["blue", "red", "yellow", "black", "cyan",
-                  "magenta", "green", "dark red", "dark green", "dark blue"]
+        colors = ["blue", "red", "green", "black", "cyan",
+                  "magenta", "yellow", "dark red", "dark green", "dark blue"]
         alphas = [1.0, 1.0, 1.0, 1.0, 1.0,
                   1.0, 1.0, 1.0, 1.0, 1.0]
-        for i in xrange(2):
+        for i in xrange(1):
             if len(labels[i]) == 0:
                 self.qtgui_vector_sink_f_0.set_line_label(i, "Data {0}".format(i))
             else:
@@ -352,59 +330,22 @@ class sdr_spectrum_analyzer(gr.top_block):
             self.qtgui_vector_sink_f_0.set_line_width(i, widths[i])
             self.qtgui_vector_sink_f_0.set_line_color(i, colors[i])
             self.qtgui_vector_sink_f_0.set_line_alpha(i, alphas[i])
-
+        
         self._qtgui_vector_sink_f_0_win = sip.wrapinstance(self.qtgui_vector_sink_f_0.pyqwidget(), Qt.QWidget)
-        
-        self.qtgui_waterfall_sink_x_0 = qtgui.waterfall_sink_f(
-        	N, #size
-        	firdes.WIN_BLACKMAN_hARRIS, #wintype
-        	fc - ab / 2, #fc
-        	ab / N, #bw
-        	"", #name
-                1 #number of inputs
-        )
-
-        self.qtgui_waterfall_sink_x_0.set_update_time(0.10)
-        self.qtgui_waterfall_sink_x_0.enable_grid(False)
-        
-        if float == type(float()):
-          self.qtgui_waterfall_sink_x_0.set_plot_pos_half(not True)
-        
-        labels = ["", "", "", "", "",
-                  "", "", "", "", ""]
-        colors = [0, 0, 0, 0, 0,
-                  0, 0, 0, 0, 0]
-        alphas = [1.0, 1.0, 1.0, 1.0, 1.0,
-                  1.0, 1.0, 1.0, 1.0, 1.0]
-        for i in xrange(1):
-            if len(labels[i]) == 0:
-                self.qtgui_waterfall_sink_x_0.set_line_label(i, "Data {0}".format(i))
-            else:
-                self.qtgui_waterfall_sink_x_0.set_line_label(i, labels[i])
-            self.qtgui_waterfall_sink_x_0.set_color_map(i, colors[i])
-            self.qtgui_waterfall_sink_x_0.set_line_alpha(i, alphas[i])
-        
-        self.qtgui_waterfall_sink_x_0.set_intensity_range(-140, 10)
-        
-        self._qtgui_waterfall_sink_x_0_win = sip.wrapinstance(self.qtgui_waterfall_sink_x_0.pyqwidget(), Qt.QWidget)
-
         self.blocks_stream_to_vector_0 = blocks.stream_to_vector(gr.sizeof_float*1, N)
         self.udp_source_0 = blocks.udp_source(gr.sizeof_float*1, IP, port, 1472, True)
-        self.RadioGIS_mask_0 = RadioGIS.mask(frequencies, amplitudes, N)
 
         ##################################################
         # Connections
         ##################################################
-        self.connect((self.RadioGIS_mask_0, 0), (self.qtgui_vector_sink_f_0, 1))
         self.connect((self.udp_source_0, 0), (self.blocks_stream_to_vector_0, 0))    
-        self.connect((self.blocks_stream_to_vector_0, 0), (self.qtgui_vector_sink_f_0, 0))    
-        self.connect((self.udp_source_0, 0), (self.qtgui_waterfall_sink_x_0, 0)) 
+        self.connect((self.blocks_stream_to_vector_0, 0), (self.qtgui_vector_sink_f_0, 0))
 
         self.ctrl_win = control_box()
         self.head_win = header()
         self.ctrl_win.attach_signal(self)
 
-        self.main_box = dialog_box(self.head_win, display_box(self._qtgui_vector_sink_f_0_win), (self._qtgui_waterfall_sink_x_0_win), self.ctrl_win)
+        self.main_box = dialog_box(self.head_win, display_box(self._qtgui_vector_sink_f_0_win), self.ctrl_win)
         self.main_box.show()
 
     def closeEvent(self, event):
@@ -490,12 +431,10 @@ class sdr_spectrum_analyzer(gr.top_block):
         self.update_y_axis()
 
     def update_x_axis(self):
-        self.qtgui_vector_sink_f_0.set_x_axis((self.fc - self.ab / 2) / 1e6, (self.ab / self.N) / 1e6)
-        self.qtgui_waterfall_sink_x_0.set_frequency_range(self.fc - self.ab / 2, self.ab / self.N)
+        self.qtgui_vector_sink_f_0.set_x_axis(self.fc - self.ab / 2, self.ab / self.N)
 
     def update_y_axis(self):
         self.qtgui_vector_sink_f_0.set_y_axis(self.y0, self.y1)
-        self.qtgui_waterfall_sink_x_0.set_intensity_range(self.y0, self.y1)
 
 if __name__ == "__main__":
     tb = sdr_spectrum_analyzer();
