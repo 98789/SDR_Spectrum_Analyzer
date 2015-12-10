@@ -119,7 +119,7 @@ class control_box(QtGui.QWidget):
         self.connect(self.stopButton, QtCore.SIGNAL('clicked()'), self.send_stop_signal)
 
         self.hbox = QtGui.QHBoxLayout()
-        self.hbox.addWidget(self.configButton)
+        self.hbox.addWidget(self.startButton)
         self.hbox.addWidget(self.stopButton)
 
         self.vbox = QtGui.QVBoxLayout(self)
@@ -234,6 +234,7 @@ class control_box(QtGui.QWidget):
     def send_start_signal(self):
         try:
             conf_ini = {"n": self.signal.get_n(), "start": True}
+            print(conf_ini)
             self.signal.get_dino().send(conf_ini)
             print("Application successfully started")
         except:
@@ -337,7 +338,7 @@ class sdr_spectrum_analyzer(gr.top_block):
         self.ab = ab = 20000000
         self.N = N = 1024
         self.n = n = 512
-        self.IP = IP = "192.168.1.103"
+        self.IP = IP = "192.168.1.115"
         self.Antena = Antena = "RX2"
 	self.remote_IP = "192.168.1.127"
         self.dino = remote_configurator(self.remote_IP, self.port)
@@ -493,6 +494,9 @@ class sdr_spectrum_analyzer(gr.top_block):
     def set_IP(self, IP):
         self.IP = IP
 	self.dino.send({"IP": self.IP})
+
+    def get_dino(self):
+        return self.dino
 
     def get_Antena(self):
         return self.Antena
