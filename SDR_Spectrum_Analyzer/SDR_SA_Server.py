@@ -18,7 +18,7 @@ import RadioGIS
 
 class SDR_SA_Server(gr.top_block):
 
-    def __init__(self):
+    def __init__(self, n=512):
         gr.top_block.__init__(self, "SDR Spectrum Analyzer Server")
 
         ##################################################
@@ -29,8 +29,8 @@ class SDR_SA_Server(gr.top_block):
         self.fc = fc = 99700000
         self.ab = ab = 20000000
         self.N = N = 1024
-        self.n = n = 512
-        self.IP = IP = "192.168.0.110"
+        self.n = n
+        self.IP = IP = "192.168.1.103"
         self.Antena = Antena = "RX2"
         self.ventana = ventana = window.blackmanharris
         self.base = base = "exponencial"
@@ -142,10 +142,14 @@ class SDR_SA_Server(gr.top_block):
 if __name__ == '__main__':
     parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
     (options, args) = parser.parse_args()
-    tb = SDR_SA_Server()
-    tb.start()
-    dino = remote_configurator("192.168.0.109", 9999)
+    dino = remote_configurator("192.168.1.127", 9999)
     dino.bind()
+    while 1:
+        data = dino.listen()
+        if data.get("start"):
+            tb = SDR_SA_Server(data.get("n"))
+            tb.start()
+            break
     while 1:
     	data = dino.listen()
         if "gan" in data:
@@ -158,11 +162,8 @@ if __name__ == '__main__':
             tb.set_IP(data.get("IP"))
         elif "base" in data:
             tb.set_base(data.get("base"))
-        else:
+        elif "ventana" in data:
             tb.set_ventana(data.get("ventana"))
-    try:
-        raw_input('Press Enter to quit: ')
-    except EOFError:
-        pass
-    tb.stop()
-    tb.wait()
+        elif data.get("stop"):
+            tb.stop()
+            tb.wait()

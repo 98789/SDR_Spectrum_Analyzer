@@ -112,8 +112,11 @@ class control_box(QtGui.QWidget):
         self.tab1 = QtGui.QWidget()
         self.tab2 = QtGui.QWidget()
 
-        self.configButton = QtGui.QPushButton("Configuracion")
-        self.stopButton = QtGui.QPushButton("Stop")
+        self.startButton = QtGui.QPushButton("Iniciar")
+        self.connect(self.startButton, QtCore.SIGNAL('clicked()'), self.send_start_signal)
+
+        self.stopButton = QtGui.QPushButton("Parar")
+        self.connect(self.stopButton, QtCore.SIGNAL('clicked()'), self.send_stop_signal)
 
         self.hbox = QtGui.QHBoxLayout()
         self.hbox.addWidget(self.configButton)
@@ -180,6 +183,12 @@ class control_box(QtGui.QWidget):
         self.sel_escala.setMinimumWidth(100)
         self.conf_an.addRow("Escala:", self.sel_escala)
 
+        self.sel_promedio = QtGui.QLineEdit(self)
+        self.sel_promedio.setMinimumWidth(100)
+        self.conf_an.addRow("Promediado:", self.sel_promedio)
+        self.connect(self.sel_promedio, QtCore.SIGNAL("editingFinished()"),
+                     self.promedio_edit_text)
+
         self.sel_IP = QtGui.QLineEdit(self)
         self.sel_IP.setMinimumWidth(100)
         self.conf_usrp.addRow("IP:", self.sel_IP)
@@ -218,36 +227,52 @@ class control_box(QtGui.QWidget):
         self.sel_span.setText(QtCore.QString("%1").arg(self.signal.get_ab()))
         self.sel_fc.setText(QtCore.QString("%1").arg(self.signal.get_fc()))
         self.sel_ganancia.setText(QtCore.QString("%1").arg(self.signal.get_gan()))
+        self.sel_promedio.setText(QtCore.QString("%1").arg(self.signal.get_n()))
         self.sel_y0.setText(QtCore.QString("%1").arg(self.signal.get_y0()))
         self.sel_y1.setText(QtCore.QString("%1").arg(self.signal.get_y1()))
+
+    def send_start_signal(self):
+        try:
+            conf_ini = {"n": self.signal.get_n(), "start": True}
+            self.signal.get_dino().send(conf_ini)
+            print("Application successfully started")
+        except:
+            print("Something went wrong while starting the application")
+
+    def send_stop_signal(self):
+        try:
+            self.signal.get_dino().send({"stop": True})
+            print("Application successfully stopped")
+        except:
+            print("Unable to stop the application D:")
 
     def IP_edit_text(self):
         try:
 	    newIP = str(self.sel_IP.text())
             self.signal.set_IP(newIP)
         except ValueError:
-	    print "Wrong IP format"
+	    print("Wrong IP format")
 
     def puerto_edit_text(self):
         try:
 	    newPuerto = str(self.sel_IP.text())
             self.signal.set_puerto(newPuerto)
         except ValueError:
-	    print "Invalid port"
+	    print("Invalid port")
 
     def span_edit_text(self):
         try:
 	    newSpan = float(self.sel_span.text())
             self.signal.set_ab(newSpan)
         except ValueError:
-	    print "Unsupported span value"
+	    print("Unsupported span value")
 
     def fc_edit_text(self):
         try:
 	    newFc = float(self.sel_fc.text())
             self.signal.set_fc(newFc)
         except ValueError:
-	    print "Invalid center frequency"
+	    print("Invalid center frequency")
         self.sel_fc.setText("{0:.0f}".format(self.signal.get_fc()))
 
     def ganancia_edit_text(self):
@@ -255,35 +280,42 @@ class control_box(QtGui.QWidget):
 	    newGanancia = float(self.sel_ganancia.text())
             self.signal.set_gan(newGanancia)
         except ValueError:
-	    print "Gain out of range"
+	    print("Gain out of range")
 
     def ventana_edit_text(self):
         try:
 	    newVentana = str(self.sel_ventana.currentText())
             self.signal.set_ventana(newVentana)
         except ValueError:
-	    print "Something went wrong with the selected window"
+	    print("Something went wrong with the selected window")
 
     def base_edit_text(self):
         try:
 	    newBase = str(self.sel_base.currentText())
             self.signal.set_base(newBase)
         except ValueError:
-	    print "Something went wrong with the selected base"
+	    print("Something went wrong with the selected base")
+
+    def promedio_edit_text(self):
+        try:
+	    newPromedio = int(self.sel_promedio.text())
+            self.signal.set_n(newPromedio)
+        except ValueError:
+	    print("Gain out of range")
 
     def y0_edit_text(self):
         try:
 	    newy0 = float(self.sel_y0.text())
             self.signal.set_y0(newy0)
         except ValueError:
-	    print "Invalid amplitude value"
+	    print("Invalid amplitude value")
 
     def y1_edit_text(self):
         try:
 	    newy1 = float(self.sel_y1.text())
             self.signal.set_y1(newy1)
         except ValueError:
-	    print "Invalid frequency value"
+	    print("Invalid frequency value")
 
 
 class sdr_spectrum_analyzer(gr.top_block):
@@ -304,9 +336,10 @@ class sdr_spectrum_analyzer(gr.top_block):
         self.fc = fc = 99700000
         self.ab = ab = 20000000
         self.N = N = 1024
-        self.IP = IP = "192.168.1.107"
+        self.n = n = 512
+        self.IP = IP = "192.168.1.103"
         self.Antena = Antena = "RX2"
-	self.remote_IP = "192.168.1.103"
+	self.remote_IP = "192.168.1.127"
         self.dino = remote_configurator(self.remote_IP, self.port)
         self.ventana = "Hamming"
         self.base = "exponencial"
@@ -447,6 +480,12 @@ class sdr_spectrum_analyzer(gr.top_block):
 
     def set_N(self, N):
         self.N = N
+
+    def get_n(self):
+        return self.n
+
+    def set_n(self, n):
+        self.n = n
 
     def get_IP(self):
         return self.IP
