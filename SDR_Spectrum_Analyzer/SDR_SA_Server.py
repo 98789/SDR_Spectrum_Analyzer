@@ -30,7 +30,7 @@ class SDR_SA_Server(gr.top_block):
         self.ab = ab = 20000000
         self.N = N = 1024
         self.n = n
-        self.IP = IP = "192.168.1.103"
+        self.IP = IP = "192.168.45.235"
         self.Antena = Antena = "RX2"
         self.ventana = ventana = window.blackmanharris
         self.base = base = "exponencial"
@@ -53,23 +53,27 @@ class SDR_SA_Server(gr.top_block):
         self.blocks_vector_to_stream_0 = blocks.vector_to_stream(gr.sizeof_float*1, N)
         self.blocks_vector_to_stream_1 = blocks.vector_to_stream(gr.sizeof_float*1, N)
         self.blocks_stream_to_vector_1 = blocks.stream_to_vector(gr.sizeof_float*1, N*n)
+        self.blocks_stream_to_vector_2 = blocks.stream_to_vector(gr.sizeof_float*1, N)
         self.blocks_stream_to_vector_0 = blocks.stream_to_vector(gr.sizeof_gr_complex*1, N)
         self.blocks_complex_to_mag_0 = blocks.complex_to_mag(N)
         self.udp_sink_0 = blocks.udp_sink(gr.sizeof_float*1, IP, port, 1472, True)
         self.RadioGIS_fft_0 = RadioGIS.fft(N, base, (ventana(N)))
         self.RadioGIS_averager_0 = RadioGIS.averager(N, n)
+        self.RadioGIS_data_submitter_0 = RadioGIS.data_submitter(N)
 
         ##################################################
         # Connections
         ##################################################
         self.connect((self.RadioGIS_averager_0, 0), (self.blocks_vector_to_stream_0, 0))    
         self.connect((self.dbm, 0), (self.udp_sink_0, 0))    
-        self.connect((self.RadioGIS_fft_0, 0), (self.blocks_complex_to_mag_0, 0))    
-        self.connect((self.blocks_complex_to_mag_0, 0), (self.blocks_vector_to_stream_1, 0))    
+        self.connect((self.RadioGIS_fft_0, 0), (self.blocks_complex_to_mag_0, 0))
+        self.connect((self.blocks_complex_to_mag_0, 0), (self.blocks_vector_to_stream_1, 0))  
         self.connect((self.blocks_stream_to_vector_0, 0), (self.RadioGIS_fft_0, 0))    
         self.connect((self.blocks_stream_to_vector_1, 0), (self.RadioGIS_averager_0, 0))    
-        self.connect((self.blocks_vector_to_stream_0, 0), (self.dbm, 0))    
-        self.connect((self.blocks_vector_to_stream_1, 0), (self.blocks_stream_to_vector_1, 0))    
+        self.connect((self.blocks_vector_to_stream_0, 0), (self.dbm, 0))
+        self.connect((self.blocks_vector_to_stream_1, 0), (self.blocks_stream_to_vector_1, 0))
+        self.connect((self.dbm, 0), (self.blocks_stream_to_vector_2, 0))
+        self.connect((self.blocks_stream_to_vector_2, 0), (self.RadioGIS_data_submitter_0, 0))
         self.connect((self.src, 0), (self.blocks_stream_to_vector_0, 0))
 
 
@@ -142,7 +146,7 @@ class SDR_SA_Server(gr.top_block):
 if __name__ == '__main__':
     parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
     (options, args) = parser.parse_args()
-    dino = remote_configurator("192.168.1.127", 9999)
+    dino = remote_configurator("192.168.45.218", 9999)
     dino.bind()
     while 1:
         data = dino.listen()

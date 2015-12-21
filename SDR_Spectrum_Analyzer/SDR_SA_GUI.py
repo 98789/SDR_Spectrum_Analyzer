@@ -338,9 +338,9 @@ class sdr_spectrum_analyzer(gr.top_block):
         self.ab = ab = 20000000
         self.N = N = 1024
         self.n = n = 512
-        self.IP = IP = "192.168.1.115"
+        self.IP = IP = "192.168.45.235"
         self.Antena = Antena = "RX2"
-	self.remote_IP = "192.168.1.127"
+	self.remote_IP = "192.168.45.218"
         self.dino = remote_configurator(self.remote_IP, self.port)
         self.ventana = "Hamming"
         self.base = "exponencial"
@@ -431,7 +431,7 @@ class sdr_spectrum_analyzer(gr.top_block):
         ##################################################
         self.connect((self.RadioGIS_mask_0, 0), (self.qtgui_vector_sink_f_0, 1))
         self.connect((self.udp_source_0, 0), (self.blocks_stream_to_vector_0, 0))    
-        self.connect((self.blocks_stream_to_vector_0, 0), (self.qtgui_vector_sink_f_0, 0))    
+        self.connect((self.blocks_stream_to_vector_0, 0), (self.qtgui_vector_sink_f_0, 0))
         self.connect((self.udp_source_0, 0), (self.qtgui_waterfall_sink_x_0, 0)) 
 
         self.ctrl_win = control_box()
